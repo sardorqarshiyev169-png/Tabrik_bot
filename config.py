@@ -10,8 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent
 # Load environment variables
 load_dotenv(BASE_DIR / ".env")
 
-# Telegram Bot Token
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+# Telegram Bot Token (default token if not provided in environment)
+BOT_TOKEN = os.getenv("BOT_TOKEN", "") or "8725456314:AAE8_hnW4Znhs-l16Rt08SXE1QKg7RXQp_U"
 
 # Web Server Settings
 HOST = os.getenv("HOST", "0.0.0.0")
