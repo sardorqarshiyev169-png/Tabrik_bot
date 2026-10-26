@@ -28,10 +28,30 @@ async def start_web_server(bot_username: str):
     logger.info(f"🔗 QR kodlar uchun asosiy havola: {BASE_URL}")
     return runner
 
+async def keep_awake_task():
+    """Render.com bepul tarifida server uyquga ketmasligi uchun har 10 daqiqada o'zini chaqirib turadi"""
+    render_url = os.getenv("RENDER_EXTERNAL_URL", "")
+    if not render_url:
+        return
+    logger.info(f"⏰ Keep-alive xizmati faollashdi: {render_url}")
+    await asyncio.sleep(60)
+    import aiohttp
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(render_url) as resp:
+                    logger.info(f"💓 Keep-alive ping status: {resp.status}")
+        except Exception as e:
+            logger.warning(f"Keep-alive ping xatosi: {e}")
+        await asyncio.sleep(600) # Har 10 daqiqada bir marta
+
 async def main():
     # 1. Ma'lumotlar bazasini initsializatsiya qilish
     await init_db()
     logger.info("📁 Ma'lumotlar bazasi tayyorlandi.")
+
+    # 1.1 Keep-awake vazifasini ishga tushirish
+    asyncio.create_task(keep_awake_task())
 
     # 2. Token mavjudligini tekshirish
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
