@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 from aiohttp import web
 from aiogram import Bot, Dispatcher
@@ -29,9 +30,9 @@ async def start_web_server(bot_username: str):
     return runner
 
 async def keep_awake_task():
-    """Render.com bepul tarifida server uyquga ketmasligi uchun har 10 daqiqada o'zini chaqirib turadi"""
-    render_url = os.getenv("RENDER_EXTERNAL_URL", "")
-    if not render_url:
+    """Server uyquga ketmasligi uchun har 8 daqiqada o'zini chaqirib turadi"""
+    render_url = os.getenv("RENDER_EXTERNAL_URL", "") or os.getenv("BASE_URL", "")
+    if not render_url or "localhost" in render_url or "127.0.0.1" in render_url:
         return
     logger.info(f"⏰ Keep-alive xizmati faollashdi: {render_url}")
     await asyncio.sleep(60)
@@ -39,11 +40,12 @@ async def keep_awake_task():
     while True:
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(render_url) as resp:
+                target_url = f"{render_url.rstrip('/')}/health"
+                async with session.get(target_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     logger.info(f"💓 Keep-alive ping status: {resp.status}")
         except Exception as e:
             logger.warning(f"Keep-alive ping xatosi: {e}")
-        await asyncio.sleep(600) # Har 10 daqiqada bir marta
+        await asyncio.sleep(480) # Har 8 daqiqada bir marta
 
 async def main():
     # 1. Ma'lumotlar bazasini initsializatsiya qilish

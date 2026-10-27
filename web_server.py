@@ -162,6 +162,10 @@ async def handle_index(request: web.Request) -> web.Response:
     """
     return web.Response(text=html_content, content_type="text/html")
 
+async def handle_health(request: web.Request) -> web.Response:
+    """Server holatini tekshirish va keep-alive (UptimeRobot / cron-job) uchun endpoint"""
+    return web.Response(text="OK", content_type="text/plain")
+
 def create_web_app(bot_username: str = "") -> web.Application:
     """Aiohttp veb ilovasini yaratish va sozlash"""
     app = web.Application()
@@ -169,9 +173,11 @@ def create_web_app(bot_username: str = "") -> web.Application:
     
     # Marshrutlar
     app.router.add_get("/", handle_index)
+    app.router.add_get("/health", handle_health)
     app.router.add_get("/w/{slug}", handle_wish_page)
     
     # Statik fayllar (rasmlar, QR kodlar, scriptlar)
     app.router.add_static("/static/", path=str(STATIC_DIR), name="static")
     
     return app
+
