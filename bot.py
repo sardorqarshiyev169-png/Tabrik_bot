@@ -228,8 +228,18 @@ def register_bot_handlers(dp: Dispatcher):
 
         is_adm = await check_user_is_admin(user_id)
         if not is_adm:
-            # Oddiy foydalanuvchiga ortiqcha admin ma'lumotlari ko'rsatilmaydi!
-            await message.answer("⛔️ Kechirasiz, bu buyruq faqat bot administratori uchun mo'ljallangan.")
+            await state.set_state(AdminAuthForm.waiting_for_password)
+            text = (
+                "👑 <b>Admin Boshqaruv Paneli</b>\n\n"
+                f"Sizning Telegram ID: <code>{user_id}</code>\n\n"
+                "🔐 <b>Adminlik huquqini faollashtirish uchun parolni yuboring:</b>\n"
+                "<i>(Standart parol: <code>admin123</code>)</i>\n\n"
+                "Parolni kiriting yoki /cancel bosing 👇"
+            )
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_fsm")]
+            ])
+            await message.answer(text, parse_mode="HTML", reply_markup=keyboard)
             return
 
         first_name = message.from_user.first_name or "Admin"
@@ -241,7 +251,38 @@ def register_bot_handlers(dp: Dispatcher):
             "Kerakli bo'limni tanlang 👇"
         )
         await message.answer(text, parse_mode="HTML", reply_markup=get_admin_keyboard())
-        await message.answer("Admin tezkor tugmalari faollashtirildi:", reply_markup=get_admin_mode_reply_keyboard())
+        await message.answer("Admin tezkor boshqaruv tugmalari faollashtirildi:", reply_markup=get_admin_mode_reply_keyboard())
+
+    # Parol orqali admin bo'lish
+    @dp.callback_query(F.data == "admin_auth_start")
+    async def cb_admin_auth_start(callback: types.CallbackQuery, state: FSMContext):
+        await state.set_state(AdminAuthForm.waiting_for_password)
+        text = (
+            "🔐 <b>Admin parolini kiriting:</b>\n\n"
+            "<i>(Standart parol: <code>admin123</code>)</i>"
+        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_fsm")]
+        ])
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
+        await callback.answer()
+
+    # Parolni tekshirish
+    @dp.message(AdminAuthForm.waiting_for_password, F.text)
+    async def process_admin_password(message: types.Message, state: FSMContext):
+        password = message.text.strip()
+        if password == ADMIN_PASSWORD:
+            await make_user_admin(message.from_user.id)
+            await state.clear()
+            await message.answer(
+                "✅ <b>Tabriklaymiz! Siz admin sifatida muvaffaqiyatli tasdiqlandingiz!</b>\n\n"
+                "Boshqaruv markaziga xush kelibsiz 👇",
+                parse_mode="HTML",
+                reply_markup=get_admin_keyboard()
+            )
+            await message.answer("Admin tugmalari faollashtirildi:", reply_markup=get_admin_mode_reply_keyboard())
+        else:
+            await message.answer("❌ Noto'g'ri parol. Qayta urinib ko'ring yoki /cancel bosing:")
 
     # Admin bosh menyusi (Callback)
     @dp.callback_query(F.data == "admin_panel")
@@ -250,7 +291,19 @@ def register_bot_handlers(dp: Dispatcher):
         user_id = callback.from_user.id
         is_adm = await check_user_is_admin(user_id)
         if not is_adm:
-            await callback.answer("⛔️ Kirish taqiqlangan!", show_alert=True)
+            await state.set_state(AdminAuthForm.waiting_for_password)
+            text = (
+                "👑 <b>Admin Boshqaruv Paneli</b>\n\n"
+                f"Sizning Telegram ID: <code>{user_id}</code>\n\n"
+                "🔐 <b>Adminlik huquqini faollashtirish uchun parolni kiriting:</b>\n"
+                "<i>(Standart parol: <code>admin123</code>)</i>\n\n"
+                "Parolni kiriting yoki bekor qilishni bosing 👇"
+            )
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_fsm")]
+            ])
+            await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
+            await callback.answer()
             return
 
         text = (
