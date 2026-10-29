@@ -825,7 +825,7 @@ def register_bot_handlers(dp: Dispatcher):
                 photo_input = FSInputFile(qr_file_path)
                 try:
                     await callback.message.delete()
-                } catch Exception:
+                except Exception:
                     pass
                 await bot.send_photo(
                     chat_id=callback.message.chat.id,
