@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabrik Bot — Admin Boshqaruv Markazi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-card: rgba(18, 24, 38, 0.75);
+            --bg-card-hover: rgba(28, 36, 56, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(245, 158, 11, 0.35);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #f59e0b;
+            --primary-glow: rgba(245, 158, 11, 0.25);
+            --success: #10b981;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --purple: #8b5cf6;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-card: 0 12px 36px -6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 70%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.6) 0%, transparent 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding-bottom: 60px;
+            line-height: 1.5;
+        }
+
+        h1, h2, h3, h4, .font-heading {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        /* Top Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            box-shadow: 0 4px 16px var(--primary-glow);
+        }
+
+        .brand-info h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-info p {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f59e0b, #ea580c);
+            color: #0f172a;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.15);
+            background: var(--bg-card-hover);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+        }
+
+        .stat-card.c-primary::after { background: linear-gradient(90deg, #f59e0b, transparent); }
+        .stat-card.c-success::after { background: linear-gradient(90deg, #10b981, transparent); }
+        .stat-card.c-purple::after { background: linear-gradient(90deg, #8b5cf6, transparent); }
+        .stat-card.c-info::after { background: linear-gradient(90deg, #3b82f6, transparent); }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .stat-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .stat-card.c-primary .stat-icon { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+        .stat-card.c-success .stat-icon { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+        .stat-card.c-purple .stat-icon { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+        .stat-card.c-info .stat-icon { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+        .stat-value {
+            font-size: 34px;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .stat-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-pill.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .badge-pill.warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .badge-pill.danger { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .badge-pill.info { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+
+        /* Main Section Grid */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.35fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 1024px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card Section */
+        .panel-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Broadcast Form */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .form-textarea {
+            width: 100%;
+            min-height: 160px;
+            background: rgba(10, 15, 26, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.2s;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .char-counter {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .format-hint {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+
+        .format-hint code {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fbbf24;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        /* Tables */
+        .table-responsive {
+            overflow-x: auto;
+            max-height: 480px;
+            overflow-y: auto;
+        }
+
+        .table-responsive::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 99px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(10, 15, 26, 0.9);
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 12px 14px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #cbd5e1;
+            white-space: nowrap;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar-sm {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .user-handle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .action-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(245, 158, 11, 0.1);
+            transition: all 0.2s;
+        }
+
+        .action-link:hover {
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        /* Alert Notifications */
+        .alert-box {
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 18px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Top Header -->
+    <header class="header">
+        <div class="header-brand">
+            <div class="brand-logo">🎂</div>
+            <div class="brand-info">
+                <h1>Tabrik Bot Boshqaruv Markazi</h1>
+                <p>
+                    <span class="status-dot"></span>
+                    <span>Bot faol ishlamoqda</span>
+                    <span>•</span>
+                    <span id="currentTime">--:--</span>
+                </p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="refreshDashboard()" id="refreshBtn">
+                <span id="refreshIcon">🔄</span> Yangilash
+            </button>
+            <a href="https://t.me/{{bot_username}}" target="_blank" class="btn btn-primary">
+                <span>🤖</span> Botni Ochish
+            </a>
+        </div>
+    </header>
+
+    <!-- 4 Key Metric Cards -->
+    <section class="stats-grid">
+        <!-- 1. Jami Foydalanuvchilar -->
+        <div class="stat-card c-primary">
+            <div class="stat-header">
+                <span class="stat-title">Foydalanuvchilar</span>
+                <div class="stat-icon">👥</div>
+            </div>
+            <div class="stat-value" id="statTotalUsers">{{total_users}}</div>
+            <div class="stat-desc">
+                <span class="badge-pill success">+<span id="statTodayUsers">{{today_new_users}}</span> bugun</span>
+                <span>Jami ro'yxatdan o'tganlar</span>
+            </div>
+        </div>
+
+        <!-- 2. Faol Foydalanuvchilar -->
+        <div class="stat-card c-success">
+            <div class="stat-header">
+                <span class="stat-title">Faol A'zolar</span>
+                <div class="stat-icon">🟢</div>
+            </div>
+            <div class="stat-value" id="statActiveUsers">{{active_users}}</div>
+            <div class="stat-desc">
+                <span class="badge-pill danger"><span id="statBlockedUsers">{{blocked_users}}</span> ta blok</span>
+                <span>Xabarnoma qabul qiluvchilar</span>
+            </div>
+        </div>
+
+        <!-- 3. Yaratilgan Tabriklar -->
+        <div class="stat-card c-purple">
+            <div class="stat-header">
+                <span class="stat-title">Yaratilgan Tabriklar</span>
+                <div class="stat-icon">🎁</div>
+            </div>
+            <div class="stat-value" id="statTotalWishes">{{total_wishes}}</div>
+            <div class="stat-desc">
+                <span class="badge-pill warning">+<span id="statTodayWishes">{{today_wishes}}</span> bugun</span>
+                <span>Interaktiv tabriknomalar</span>
+            </div>
+        </div>
+
+        <!-- 4. Jami Ko'rishlar -->
+        <div class="stat-card c-info">
+            <div class="stat-header">
+                <span class="stat-title">QR va Veb Ko'rishlar</span>
+                <div class="stat-icon">👁</div>
+            </div>
+            <div class="stat-value" id="statTotalViews">{{total_views}}</div>
+            <div class="stat-desc">
+                <span class="badge-pill info">Ochilishlar soni</span>
+                <span>QR va havolalar orqali</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Workspace Grid -->
+    <div class="layout-grid">
+        
+        <!-- Left Column: Broadcast Message Center -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <span>📢</span> Foydalanuvchilarga Xabarnoma / Reklama
+                </h2>
+                <span class="badge-pill success">
+                    👥 <span id="recipientCount">{{active_users}}</span> ta qabul qiluvchi
+                </span>
+            </div>
+
+            <div id="broadcastAlert" class="alert-box"></div>
+
+            <form id="broadcastForm" onsubmit="sendBroadcast(event)">
+                <div class="form-group">
+                    <label class="form-label" for="broadcastText">Xabar yoki Reklama Matni</label>
+                    <textarea 
+                        id="broadcastText" 
+                        class="form-textarea" 
+                        placeholder="Hurmatli foydalanuvchilar! Botimizga yangi sovg'a shablonlari qo'shildi. Yaqinlaringizni chiroyli tabriklang... ✨"
+                        required
+                        oninput="updateCharCount()"
+                    ></textarea>
+                    <div class="char-counter"><span id="charCount">0</span> belgi</div>
+                </div>
+
+                <div class="format-hint">
+                    💡 <b>Qo'llab-quvvatlanadigan HTML teglar:</b><br>
+                    <code>&lt;b&gt;qalin&lt;/b&gt;</code>, <code>&lt;i&gt;kursiv&lt;/i&gt;</code>, <code>&lt;a href="https://..."&gt;havola&lt;/a&gt;</code>, <code>&lt;code&gt;kod&lt;/code&gt;</code>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="broadcastBtn" style="width: 100%;">
+                    <span>🚀</span> Barcha Foydalanuvchilarga Yuborish
+                </button>
+            </form>
+        </div>
+
+        <!-- Right Column: Recent Users List -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <span>👥</span> So'nggi Foydalanuvchilar
+                </h2>
+                <span class="badge-pill info">Oxirgi a'zolar</span>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Foydalanuvchi</th>
+                            <th>Telegram ID</th>
+                            <th>Holati</th>
+                            <th>Oxirgi faollik</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Dynamic rendered by JS / initial context -->
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #94a3b8; padding: 30px;">Yuklanmoqda...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Full Width: Recent Birthday Wishes List -->
+    <div class="panel-card">
+        <div class="panel-header">
+            <h2 class="panel-title">
+                <span>🎁</span> So'nggi Yaratilgan Tabriknomalar
+            </h2>
+            <span class="badge-pill warning">QR & Interaktiv sahifalar</span>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th># Slug</th>
+                        <th>Tug'ilgan Kun Egasi</th>
+                        <th>Kim Nomidan</th>
+                        <th>Uslub</th>
+                        <th>Ko'rishlar</th>
+                        <th>Yaratilgan Vaqt</th>
+                        <th>Amal</th>
+                    </tr>
+                </thead>
+                <tbody id="wishesTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">Yuklanmoqda...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('currentTime').textContent = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function updateCharCount() {
+        const text = document.getElementById('broadcastText').value;
+        document.getElementById('charCount').textContent = text.length;
+    }
+
+    // Refresh Dashboard Data
+    async function refreshDashboard() {
+        const refreshIcon = document.getElementById('refreshIcon');
+        refreshIcon.style.display = 'inline-block';
+        refreshIcon.style.animation = 'spin 0.6s linear infinite';
+
+        try {
+            const resp = await fetch('/api/admin/stats');
+            const data = await resp.json();
+
+            if (data.status === 'ok') {
+                const s = data.stats;
+                document.getElementById('statTotalUsers').textContent = s.total_users;
+                document.getElementById('statActiveUsers').textContent = s.active_users;
+                document.getElementById('statBlockedUsers').textContent = s.blocked_users;
+                document.getElementById('statTodayUsers').textContent = s.today_new_users;
+                document.getElementById('statTotalWishes').textContent = s.total_wishes;
+                document.getElementById('statTodayWishes').textContent = s.today_wishes;
+                document.getElementById('statTotalViews').textContent = s.total_views;
+                document.getElementById('recipientCount').textContent = s.active_users;
+
+                renderUsersTable(data.recent_users);
+                renderWishesTable(data.recent_wishes);
+            }
+        } catch (err) {
+            console.error('Statistika yangilashda xato:', err);
+        } finally {
+            refreshIcon.style.animation = '';
+        }
+    }
+
+    function renderUsersTable(users) {
+        const tbody = document.getElementById('usersTableBody');
+        if (!users || users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 24px;">Foydalanuvchilar topilmadi</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = users.map(u => {
+            const initial = (u.first_name || 'U').charAt(0).toUpperCase();
+            const uname = u.username ? `@${u.username}` : 'usernamesiz';
+            const statusBadge = u.is_blocked 
+                ? '<span class="badge-pill danger">🚫 Blok</span>' 
+                : '<span class="badge-pill success">🟢 Faol</span>';
+            const dateStr = u.last_active_at ? u.last_active_at.substring(0, 16) : '-';
+
+            return `
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="user-avatar-sm">${initial}</div>
+                            <div>
+                                <div class="user-name">${escapeHtml(u.first_name || 'Foydalanuvchi')}</div>
+                                <div class="user-handle">${escapeHtml(uname)}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><code>${u.telegram_id}</code></td>
+                    <td>${statusBadge}</td>
+                    <td style="color: #94a3b8;">${dateStr}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderWishesTable(wishes) {
+        const tbody = document.getElementById('wishesTableBody');
+        if (!wishes || wishes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 24px;">Hozircha tabriklar yo\'q</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = wishes.map(w => {
+            const dateStr = w.created_at ? w.created_at.substring(0, 16) : '-';
+            const themeBadge = `<span class="badge-pill warning">${escapeHtml(w.theme || 'gold')}</span>`;
+
+            return `
+                <tr>
+                    <td><code>${escapeHtml(w.slug)}</code></td>
+                    <td><b>${escapeHtml(w.recipient_name)}</b></td>
+                    <td>${escapeHtml(w.sender_name || 'Yaqiningiz')}</td>
+                    <td>${themeBadge}</td>
+                    <td><b>👁 ${w.views_count}</b> marta</td>
+                    <td style="color: #94a3b8;">${dateStr}</td>
+                    <td>
+                        <a href="/w/${w.slug}" target="_blank" class="action-link">
+                            Ko'rish ↗
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // Send Broadcast from Web UI
+    async function sendBroadcast(e) {
+        e.preventDefault();
+        const textarea = document.getElementById('broadcastText');
+        const text = textarea.value.trim();
+        if (!text) return;
+
+        if (!confirm('Ushbu xabarni barcha bot foydalanuvchilariga yuborishni tasdiqlaysizmi?')) {
+            return;
+        }
+
+        const btn = document.getElementById('broadcastBtn');
+        const alertBox = document.getElementById('broadcastAlert');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Yuborilmoqda, kuting...';
+
+        try {
+            const resp = await fetch('/api/admin/broadcast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+
+            const res = await resp.json();
+            alertBox.style.display = 'flex';
+
+            if (res.status === 'ok') {
+                alertBox.className = 'alert-box alert-success';
+                alertBox.innerHTML = `
+                    <span>✅</span>
+                    <div>
+                        <b>Xabarnoma yuborildi!</b><br>
+                        Yetkazildi: <b>${res.sent} ta</b> | Bloklagan: <b>${res.blocked} ta</b> | Vaqt: <b>${res.elapsed} soniya</b>
+                    </div>
+                `;
+                textarea.value = '';
+                updateCharCount();
+                refreshDashboard();
+            } else {
+                alertBox.className = 'alert-box alert-error';
+                alertBox.innerHTML = `<span>⚠️</span> <div><b>Xatolik:</b> ${res.message || 'Xabar yuborilmadi'}</div>`;
+            }
+        } catch (err) {
+            alertBox.style.display = 'flex';
+            alertBox.className = 'alert-box alert-error';
+            alertBox.innerHTML = `<span>⚠️</span> <div><b>Server xatosi:</b> ${err.message}</div>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀</span> Barcha Foydalanuvchilarga Yuborish';
+        }
+    }
+
+    // Initial load
+    refreshDashboard();
+</script>
+</body>
+</html>

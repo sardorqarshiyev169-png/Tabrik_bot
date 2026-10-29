@@ -1,12 +1,13 @@
 import aiosqlite
 import secrets
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from config import DB_PATH
 
 async def init_db():
     """Ma'lumotlar bazasini ishga tushirish va jadvallarni yaratish"""
     async with aiosqlite.connect(DB_PATH) as db:
+        # Tabriklar jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS wishes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,11 +23,137 @@ async def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Foydalanuvchilar jadvali (Admin panel va statistika uchun)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                telegram_id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                is_blocked INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Wishes jadvalidagi mavjud telegram_user_id larni avtomatik users ga kiritish
+        await db.execute("""
+            INSERT OR IGNORE INTO users (telegram_id, first_name)
+            SELECT DISTINCT telegram_user_id, 'Foydalanuvchi'
+            FROM wishes
+            WHERE telegram_user_id IS NOT NULL
+        """)
+
         await db.commit()
 
 def generate_slug() -> str:
     """Xavfsiz va qisqa unikal identifikator yaratish"""
     return secrets.token_urlsafe(6).replace("-", "").replace("_", "")[:8]
+
+async def add_or_update_user(
+    telegram_id: int,
+    username: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None
+):
+    """Foydalanuvchini bazaga kiritish yoki faollik vaqtini yangilash"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO users (telegram_id, username, first_name, last_name, is_blocked, last_active_at)
+            VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+            ON CONFLICT(telegram_id) DO UPDATE SET
+                username = COALESCE(excluded.username, users.username),
+                first_name = COALESCE(excluded.first_name, users.first_name),
+                last_name = COALESCE(excluded.last_name, users.last_name),
+                is_blocked = 0,
+                last_active_at = CURRENT_TIMESTAMP
+        """, (telegram_id, username, first_name, last_name))
+        await db.commit()
+
+async def mark_user_blocked(telegram_id: int):
+    """Botni bloklagan foydalanuvchini belgilash"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET is_blocked = 1 WHERE telegram_id = ?", (telegram_id,))
+        await db.commit()
+
+async def get_stats_summary() -> Dict[str, Any]:
+    """Admin panel uchun to'liq statistika ma'lumotlarini olish"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Jami foydalanuvchilar
+        cursor = await db.execute("SELECT COUNT(*) FROM users")
+        total_users = (await cursor.fetchone())[0]
+
+        # Faol foydalanuvchilar
+        cursor = await db.execute("SELECT COUNT(*) FROM users WHERE is_blocked = 0")
+        active_users = (await cursor.fetchone())[0]
+
+        # Botni bloklaganlar
+        cursor = await db.execute("SELECT COUNT(*) FROM users WHERE is_blocked = 1")
+        blocked_users = (await cursor.fetchone())[0]
+
+        # Bugun qo'shilganlar (yoki faol bo'lganlar)
+        cursor = await db.execute("SELECT COUNT(*) FROM users WHERE date(created_at) = date('now')")
+        today_new_users = (await cursor.fetchone())[0]
+
+        cursor = await db.execute("SELECT COUNT(*) FROM users WHERE date(last_active_at) = date('now')")
+        today_active_users = (await cursor.fetchone())[0]
+
+        # Jami tabriknomalar
+        cursor = await db.execute("SELECT COUNT(*) FROM wishes")
+        total_wishes = (await cursor.fetchone())[0]
+
+        # Bugun yaratilgan tabriknomalar
+        cursor = await db.execute("SELECT COUNT(*) FROM wishes WHERE date(created_at) = date('now')")
+        today_wishes = (await cursor.fetchone())[0]
+
+        # Jami ko'rishlar
+        cursor = await db.execute("SELECT COALESCE(SUM(views_count), 0) FROM wishes")
+        total_views = (await cursor.fetchone())[0]
+
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "blocked_users": blocked_users,
+            "today_new_users": today_new_users,
+            "today_active_users": today_active_users,
+            "total_wishes": total_wishes,
+            "today_wishes": today_wishes,
+            "total_views": total_views
+        }
+
+async def get_all_broadcast_users() -> List[int]:
+    """Reklama / xabarnoma jo'natish uchun barcha faol foydalanuvchilar ID ro'yxati"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT telegram_id FROM users WHERE is_blocked = 0")
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
+async def get_recent_users(limit: int = 15) -> List[Dict[str, Any]]:
+    """Eng oxirgi faol bo'lgan foydalanuvchilar ro'yxati"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("""
+            SELECT telegram_id, username, first_name, last_name, is_blocked, created_at, last_active_at
+            FROM users
+            ORDER BY last_active_at DESC
+            LIMIT ?
+        """, (limit,))
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+async def get_recent_wishes(limit: int = 15) -> List[Dict[str, Any]]:
+    """Eng oxirgi yaratilgan tabriknomalar ro'yxati"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("""
+            SELECT slug, recipient_name, sender_name, views_count, theme, created_at
+            FROM wishes
+            ORDER BY id DESC
+            LIMIT ?
+        """, (limit,))
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
 
 async def create_wish(
     recipient_name: str,

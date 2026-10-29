@@ -18,14 +18,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("BirthdayWishApp")
 
-async def start_web_server(bot_username: str):
-    """Veb-serverni ishga tushirish (QR orqali ochiladigan tabrik sahifalari uchun)"""
-    app = create_web_app(bot_username)
+async def start_web_server(bot_username: str, bot=None):
+    """Veb-serverni ishga tushirish (QR orqali ochiladigan tabrik sahifalari va Admin panel uchun)"""
+    app = create_web_app(bot_username=bot_username, bot=bot)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, HOST, PORT)
     await site.start()
     logger.info(f"🌐 Veb-server ishga tushdi: http://localhost:{PORT}")
+    logger.info(f"👑 Web Admin Panel: http://localhost:{PORT}/admin")
     logger.info(f"🔗 QR kodlar uchun asosiy havola: {BASE_URL}")
     return runner
 
@@ -86,8 +87,8 @@ async def main():
     # 5. Handlerlarni ulash
     register_bot_handlers(dp)
 
-    # 6. Veb-serverni ishga tushirish
-    runner = await start_web_server(bot_username=bot_username)
+    # 6. Veb-serverni ishga tushirish (Web Admin Dashboard bilan)
+    runner = await start_web_server(bot_username=bot_username, bot=bot)
 
     # 7. Bot polling va veb-serverni parallel yurgizish
     try:

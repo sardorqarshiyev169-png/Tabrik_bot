@@ -42,10 +42,46 @@ BASE_URL=http://localhost:8080
 
 > **Eslatma:** Agar tabriknomangiz butun internet bo'ylab boshqa telefonlarda ham ochilishini xohlasangiz, `BASE_URL` ga [Ngrok](https://ngrok.com) havolangizni yoki o'z serveringiz domenini yozishingiz mumkin (masalan: `https://sizning-domen.uz` yoki `https://abc-123.ngrok-free.app`).
 
-### 2. Dasturni ishga tushirish
+### 2. Admin sozlamalari (`.env`)
+Admin Telegram ID raqamini `.env` faylida belgilashingiz mumkin:
+```env
+BOT_TOKEN=8725456314:AAE8_hnW4Znhs-l16Rt08SXE1QKg7RXQp_U
+ADMIN_IDS=6363224227
+ADMIN_PASSWORD=admin123
+PORT=8080
+BASE_URL=
+```
+
+---
+
+## 👑 Admin Panel va Reklama / Statistika Tizimi:
+
+### 1. Bot ichidagi Admin Panel (`/admin`):
+- 📊 **Foydalanuvchilar statistikasi:**
+  - Jami bot foydalanuvchilari soni
+  - Faol a'zolar va botni bloklaganlar soni
+  - Bugun qo'shilgan va faol bo'lganlar
+  - Jami yaratilgan tabriknomalar va ko'rishlar soni
+- 📢 **Xabarnoma / Reklama yuborish (Broadcast):**
+  - Barcha bot foydalanuvchilariga xabar yuborish
+  - Matn, rasm + izoh, video yoki forward qilingan postlar
+  - Yuborishdan oldin ko'rib chiqish (**Preview**) va tasdiqlash
+  - Muvaffaqiyatli yetkazilganlar va bloklaganlar hisoboti
+- 👥 **Oxirgi foydalanuvchilar ro'yxati:**
+  - So'nggi faol a'zolar, ularning ID si, username va holati
+
+### 2. Zamonaviy Web Dashboard (`http://localhost:8080/admin`):
+- Real-time grafik va hisoblagichlar
+- Brauzerdan turib to'g'ridan-to'g'ri reklama yuborish
+- Yaratilgan barcha tabriknomalar va foydalanuvchilar jadvali
+
+---
+
+### 3. Dasturni ishga tushirish
 
 Terminalda:
 ```bash
 python main.py
 ```
 Yoki Windowsda `run.bat` faylini ikki marta bosing!
+

@@ -1,8 +1,21 @@
 import html
+import asyncio
+import logging
 from pathlib import Path
 from aiohttp import web
+from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter
+
 from config import STATIC_DIR, TEMPLATES_DIR, BASE_URL
-from database import get_wish
+from database import (
+    get_wish,
+    get_stats_summary,
+    get_all_broadcast_users,
+    get_recent_users,
+    get_recent_wishes,
+    mark_user_blocked
+)
+
+logger = logging.getLogger("BirthdayWebServer")
 
 def render_template(template_name: str, context: dict) -> str:
     """Oddiy va xavfsiz shablon renderlash mexanizmi"""
@@ -25,7 +38,6 @@ async def handle_wish_page(request: web.Request) -> web.Response:
     wish = await get_wish(slug)
     
     if not wish:
-        # Chiroyli 404 sahifasi
         error_html = """
         <!DOCTYPE html>
         <html lang="uz">
@@ -55,22 +67,13 @@ async def handle_wish_page(request: web.Request) -> web.Response:
                 }
                 h1 { font-size: 48px; margin: 0 0 10px; }
                 p { color: #94a3b8; font-size: 16px; margin-bottom: 24px; }
-                a {
-                    display: inline-block;
-                    background: #f59e0b;
-                    color: #0f172a;
-                    padding: 12px 24px;
-                    border-radius: 99px;
-                    text-decoration: none;
-                    font-weight: bold;
-                }
             </style>
         </head>
         <body>
             <div class="box">
                 <h1>🔍</h1>
                 <h2>Tabriknoma topilmadi</h2>
-                <p>Ushbu QR kod yoki havola mavjud emas yoki noto'g'ri kiritilgan.</p>
+                <p>Ushbu QR kod yoki havola mavjud emas yoki muddati o'tgan.</p>
             </div>
         </body>
         </html>
@@ -84,7 +87,6 @@ async def handle_wish_page(request: web.Request) -> web.Response:
     else:
         photo_url = "/static/default_avatar.png"
     
-    # Telegram bot username (dynamic context dan olinadi)
     bot_username = request.app.get("bot_username", "TugilganKunTabrikBot")
     
     context = {
@@ -148,6 +150,14 @@ async def handle_index(request: web.Request) -> web.Response:
                 transition: transform 0.2s;
             }}
             .btn:hover {{ transform: scale(1.04); }}
+            .admin-link {{
+                display: block;
+                margin-top: 20px;
+                color: #94a3b8;
+                font-size: 14px;
+                text-decoration: none;
+            }}
+            .admin-link:hover {{ color: #f59e0b; text-decoration: underline; }}
         </style>
     </head>
     <body>
@@ -156,6 +166,7 @@ async def handle_index(request: web.Request) -> web.Response:
             <h1>Tug'ilgan Kun Tabrik Xizmati</h1>
             <p>Ushbu server QR kodli interaktiv tug'ilgan kun tabriknomalarini taqdim etadi.</p>
             {"<a href='https://t.me/" + bot_username + "' class='btn'><span>🤖</span> Telegram Botni Ochish</a>" if bot_username else "<span style='color:#94a3b8'>Bot faol ishlamoqda ✨</span>"}
+            <a href="/admin" class="admin-link">👑 Boshqaruv Markazi (Admin Panel)</a>
         </div>
     </body>
     </html>
@@ -163,21 +174,118 @@ async def handle_index(request: web.Request) -> web.Response:
     return web.Response(text=html_content, content_type="text/html")
 
 async def handle_health(request: web.Request) -> web.Response:
-    """Server holatini tekshirish va keep-alive (UptimeRobot / cron-job) uchun endpoint"""
+    """Server holatini tekshirish va keep-alive endpoint"""
     return web.Response(text="OK", content_type="text/plain")
 
-def create_web_app(bot_username: str = "") -> web.Application:
+async def handle_admin(request: web.Request) -> web.Response:
+    """Web Admin Dashboard sahifasi (/admin)"""
+    bot_username = request.app.get("bot_username", "TugilganKunTabrikBot")
+    stats = await get_stats_summary()
+
+    context = {
+        "bot_username": bot_username,
+        "total_users": stats["total_users"],
+        "active_users": stats["active_users"],
+        "blocked_users": stats["blocked_users"],
+        "today_new_users": stats["today_new_users"],
+        "today_active_users": stats["today_active_users"],
+        "total_wishes": stats["total_wishes"],
+        "today_wishes": stats["today_wishes"],
+        "total_views": stats["total_views"],
+        "base_url": BASE_URL
+    }
+
+    rendered = render_template("admin.html", context)
+    return web.Response(text=rendered, content_type="text/html")
+
+async def handle_api_stats(request: web.Request) -> web.Response:
+    """Admin dashboard uchun JSON statistika API (/api/admin/stats)"""
+    stats = await get_stats_summary()
+    recent_users = await get_recent_users(limit=25)
+    recent_wishes = await get_recent_wishes(limit=25)
+
+    return web.json_response({
+        "status": "ok",
+        "stats": stats,
+        "recent_users": recent_users,
+        "recent_wishes": recent_wishes
+    })
+
+async def handle_api_broadcast(request: web.Request) -> web.Response:
+    """Web Admin orqali barcha foydalanuvchilarga xabarnoma/reklama yuborish (/api/admin/broadcast)"""
+    bot = request.app.get("bot")
+    if not bot:
+        return web.json_response({"status": "error", "message": "Bot xizmati faol emas"}, status=503)
+
+    try:
+        data = await request.json()
+        message_text = data.get("message", "").strip()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Noto'g'ri so'rov formati"}, status=400)
+
+    if not message_text:
+        return web.json_response({"status": "error", "message": "Xabar matni kiritilmagan"}, status=400)
+
+    users = await get_all_broadcast_users()
+    sent_count = 0
+    blocked_count = 0
+    failed_count = 0
+    start_time = asyncio.get_event_loop().time()
+
+    for user_id in users:
+        try:
+            await bot.send_message(
+                chat_id=user_id,
+                text=message_text,
+                parse_mode="HTML"
+            )
+            sent_count += 1
+        except TelegramForbiddenError:
+            blocked_count += 1
+            await mark_user_blocked(user_id)
+        except TelegramRetryAfter as e:
+            await asyncio.sleep(e.retry_after)
+            try:
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=message_text,
+                    parse_mode="HTML"
+                )
+                sent_count += 1
+            except Exception:
+                failed_count += 1
+        except Exception as e:
+            logger.warning(f"Web broadcast error for {user_id}: {e}")
+            failed_count += 1
+
+        await asyncio.sleep(0.04)
+
+    duration = asyncio.get_event_loop().time() - start_time
+
+    return web.json_response({
+        "status": "ok",
+        "sent": sent_count,
+        "blocked": blocked_count,
+        "failed": failed_count,
+        "total": len(users),
+        "elapsed": round(duration, 1)
+    })
+
+def create_web_app(bot_username: str = "", bot = None) -> web.Application:
     """Aiohttp veb ilovasini yaratish va sozlash"""
     app = web.Application()
     app["bot_username"] = bot_username
+    app["bot"] = bot
     
     # Marshrutlar
     app.router.add_get("/", handle_index)
     app.router.add_get("/health", handle_health)
+    app.router.add_get("/admin", handle_admin)
+    app.router.add_get("/api/admin/stats", handle_api_stats)
+    app.router.add_post("/api/admin/broadcast", handle_api_broadcast)
     app.router.add_get("/w/{slug}", handle_wish_page)
     
     # Statik fayllar (rasmlar, QR kodlar, scriptlar)
     app.router.add_static("/static/", path=str(STATIC_DIR), name="static")
     
     return app
-
