@@ -2,7 +2,7 @@ import aiosqlite
 import secrets
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from config import DB_PATH
+from config import DB_PATH, ADMIN_IDS, add_admin_id
 
 async def init_db():
     """Ma'lumotlar bazasini ishga tushirish va jadvallarni yaratish"""
@@ -32,10 +32,17 @@ async def init_db():
                 first_name TEXT,
                 last_name TEXT,
                 is_blocked INTEGER DEFAULT 0,
+                is_admin INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # is_admin ustuni mavjud bo'lmasa, qo'shish
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+        except Exception:
+            pass
 
         # Wishes jadvalidagi mavjud telegram_user_id larni avtomatik users ga kiritish
         await db.execute("""
@@ -44,6 +51,10 @@ async def init_db():
             FROM wishes
             WHERE telegram_user_id IS NOT NULL
         """)
+
+        # Default adminlarni bazada ham admin deb belgilash
+        for admin_id in ADMIN_IDS:
+            await db.execute("UPDATE users SET is_admin = 1 WHERE telegram_id = ?", (admin_id,))
 
         await db.commit()
 
@@ -76,6 +87,25 @@ async def mark_user_blocked(telegram_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE users SET is_blocked = 1 WHERE telegram_id = ?", (telegram_id,))
         await db.commit()
+
+async def make_user_admin(telegram_id: int):
+    """Foydalanuvchiga adminlik huquqini berish"""
+    add_admin_id(telegram_id)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET is_admin = 1 WHERE telegram_id = ?", (telegram_id,))
+        await db.commit()
+
+async def check_user_is_admin(telegram_id: int) -> bool:
+    """Foydalanuvchi admin ekanligini bazadan tekshirish"""
+    if telegram_id in ADMIN_IDS:
+        return True
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT is_admin FROM users WHERE telegram_id = ?", (telegram_id,))
+        row = await cursor.fetchone()
+        if row and row[0] == 1:
+            add_admin_id(telegram_id)
+            return True
+    return False
 
 async def get_stats_summary() -> Dict[str, Any]:
     """Admin panel uchun to'liq statistika ma'lumotlarini olish"""
@@ -134,7 +164,7 @@ async def get_recent_users(limit: int = 15) -> List[Dict[str, Any]]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("""
-            SELECT telegram_id, username, first_name, last_name, is_blocked, created_at, last_active_at
+            SELECT telegram_id, username, first_name, last_name, is_blocked, is_admin, created_at, last_active_at
             FROM users
             ORDER BY last_active_at DESC
             LIMIT ?
@@ -166,7 +196,6 @@ async def create_wish(
     """Yangi tabriknoma saqlash va uning slug kodini qaytarish"""
     slug = generate_slug()
     async with aiosqlite.connect(DB_PATH) as db:
-        # Check uniqueness just in case
         while True:
             cursor = await db.execute("SELECT id FROM wishes WHERE slug = ?", (slug,))
             row = await cursor.fetchone()
@@ -196,7 +225,6 @@ async def get_wish(slug: str) -> Optional[Dict[str, Any]]:
         if not row:
             return None
         
-        # Ko'rishlar sonini oshirish
         await db.execute("UPDATE wishes SET views_count = views_count + 1 WHERE slug = ?", (slug,))
         await db.commit()
         return dict(row)

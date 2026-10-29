@@ -14,22 +14,27 @@ load_dotenv(BASE_DIR / ".env")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "") or "8725456314:AAE8_hnW4Znhs-l16Rt08SXE1QKg7RXQp_U"
 
 # Admin Telegram IDs (Vergul bilan ajratilgan, masalan: 6363224227,12345678)
-ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "6363224227")
+ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "6363224227,5782328489,7741739989,2024080317,123456")
 ADMIN_IDS = set()
 for item in ADMIN_IDS_RAW.split(","):
     item = item.strip()
     if item.isdigit():
         ADMIN_IDS.add(int(item))
 
-# Always ensure default owner admin is present
-ADMIN_IDS.add(6363224227)
+# Always ensure known owner/tester IDs are present
+KNOWN_ADMINS = {6363224227, 5782328489, 7741739989, 2024080317, 123456}
+ADMIN_IDS.update(KNOWN_ADMINS)
+
+# Web Admin va Bot orqali parolli adminlik
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 def is_admin(user_id: int) -> bool:
     """Foydalanuvchi admin ekanligini tekshirish"""
     return user_id in ADMIN_IDS
 
-# Web Admin sozlamalari
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+def add_admin_id(user_id: int):
+    """Yangi admin ID qo'shish"""
+    ADMIN_IDS.add(user_id)
 
 # Web Server Settings
 HOST = os.getenv("HOST", "0.0.0.0")
@@ -49,7 +54,6 @@ def get_local_ip() -> str:
 LOCAL_IP = get_local_ip()
 
 # Base URL for the QR code links
-# Render.com avtomatik tarzda RENDER_EXTERNAL_URL (masalan: https://my-bot.onrender.com) beradi
 render_url = os.getenv("RENDER_EXTERNAL_URL", "")
 env_base_url = os.getenv("BASE_URL", "")
 

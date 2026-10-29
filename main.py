@@ -84,6 +84,20 @@ async def main():
     bot_username = bot_info.username
     logger.info(f"🤖 Telegram bot tayyor: @{bot_username}")
 
+    # 4.1 Telegram bot menyu buyruqlarini avtomatik ro'yxatdan o'tkazish
+    try:
+        from aiogram import types
+        await bot.set_my_commands([
+            types.BotCommand(command="start", description="Botni ishga tushirish"),
+            types.BotCommand(command="new", description="🎉 Yangi tabriknoma yaratish"),
+            types.BotCommand(command="mywishes", description="📜 Mening tabriklarim"),
+            types.BotCommand(command="admin", description="👑 Admin Panel (Statistika & Reklama)"),
+            types.BotCommand(command="help", description="ℹ️ Yordam va qo'llanma")
+        ])
+        logger.info("📋 Telegram bot menyu buyruqlari muvaffaqiyatli o'rnatildi.")
+    except Exception as e:
+        logger.warning(f"Bot buyruqlarini o'rnatishda ogohlantirish: {e}")
+
     # 5. Handlerlarni ulash
     register_bot_handlers(dp)
 
