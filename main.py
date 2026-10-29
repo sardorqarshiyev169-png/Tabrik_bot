@@ -84,17 +84,34 @@ async def main():
     bot_username = bot_info.username
     logger.info(f"🤖 Telegram bot tayyor: @{bot_username}")
 
-    # 4.1 Telegram bot menyu buyruqlarini avtomatik ro'yxatdan o'tkazish
+    # 4.1 Telegram bot menyu buyruqlarini xavfsiz o'rnatish
     try:
         from aiogram import types
+        from aiogram.types import BotCommandScopeDefault, BotCommandScopeChat
+        from config import ADMIN_IDS
+
+        # Oddiy foydalanuvchilar menyusi (Admin buyruqlari ko'rinmaydi!)
         await bot.set_my_commands([
             types.BotCommand(command="start", description="Botni ishga tushirish"),
-            types.BotCommand(command="new", description="🎉 Yangi tabriknoma yaratish"),
-            types.BotCommand(command="mywishes", description="📜 Mening tabriklarim"),
-            types.BotCommand(command="admin", description="👑 Admin Panel (Statistika & Reklama)"),
-            types.BotCommand(command="help", description="ℹ️ Yordam va qo'llanma")
-        ])
-        logger.info("📋 Telegram bot menyu buyruqlari muvaffaqiyatli o'rnatildi.")
+            types.BotCommand(command="new", description="Yangi tabriknoma yaratish"),
+            types.BotCommand(command="mywishes", description="Mening tabriklarim"),
+            types.BotCommand(command="help", description="Yordam va qo'llanma")
+        ], scope=BotCommandScopeDefault())
+
+        # Faqat adminlar menyusi (Admin Panel buyrug'i faqat adminlarda chiqadi)
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.set_my_commands([
+                    types.BotCommand(command="start", description="Botni ishga tushirish"),
+                    types.BotCommand(command="admin", description="👑 Admin Panel (Statistika)"),
+                    types.BotCommand(command="new", description="Yangi tabriknoma yaratish"),
+                    types.BotCommand(command="mywishes", description="Mening tabriklarim"),
+                    types.BotCommand(command="help", description="Yordam va qo'llanma")
+                ], scope=BotCommandScopeChat(chat_id=admin_id))
+            except Exception:
+                pass
+
+        logger.info("📋 Telegram buyruqlari alohida (oddiy foydalanuvchi va admin uchun) o'rnatildi.")
     except Exception as e:
         logger.warning(f"Bot buyruqlarini o'rnatishda ogohlantirish: {e}")
 

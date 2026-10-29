@@ -105,30 +105,49 @@ def is_valid_telegram_button_url(url: str) -> bool:
         return False
     return lower.startswith("https://") or lower.startswith("http://")
 
-def get_main_reply_keyboard():
-    """Doimiy pastki menyu tugmalari"""
+# Oddiy foydalanuvchilar uchun pastki klaviatura (faqat tabrik bo'limlari)
+def get_user_reply_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🎉 Yangi tabrik yaratish"), KeyboardButton(text="📜 Mening tabriklarim")],
-            [KeyboardButton(text="📊 Bot statistikasi"), KeyboardButton(text="👑 Admin Panel")],
             [KeyboardButton(text="ℹ️ Qanday ishlaydi?")]
         ],
         resize_keyboard=True
     )
 
+# Admin uchun foydalanuvchi rejimidagi pastki klaviatura (foydalanuvchi imkoniyatlari + Admin panelga o'tish)
+def get_admin_user_reply_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🎉 Yangi tabrik yaratish"), KeyboardButton(text="📜 Mening tabriklarim")],
+            [KeyboardButton(text="👑 Admin Panel"), KeyboardButton(text="ℹ️ Qanday ishlaydi?")]
+        ],
+        resize_keyboard=True
+    )
+
+# Admin rejimida turgan paytda admin paneli pastki klaviaturasi
+def get_admin_mode_reply_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📊 Bot statistikasi"), KeyboardButton(text="📢 Reklama yuborish")],
+            [KeyboardButton(text="👥 Foydalanuvchilar"), KeyboardButton(text="👤 Foydalanuvchi menyusi")]
+        ],
+        resize_keyboard=True
+    )
+
+# Xabar ostidagi inline tugmalar (Oddiy foydalanuvchilarga faqat o'ziga tegishli tugmalar chiqadi)
 def get_main_keyboard(is_admin_user: bool = False):
-    """Xabar ostidagi inline tugmalar"""
     buttons = [
         [InlineKeyboardButton(text="🎉 Yangi tabrik yaratish", callback_data="start_create_wish")],
         [InlineKeyboardButton(text="📜 Mening tabriklarim", callback_data="my_wishes_list")],
-        [
-            InlineKeyboardButton(text="📊 Bot statistikasi", callback_data="admin_stats"),
-            InlineKeyboardButton(text="👑 Admin Panel", callback_data="admin_panel")
-        ],
         [InlineKeyboardButton(text="ℹ️ Qanday ishlaydi?", callback_data="how_it_works")]
     ]
+    # Faqat bot egasi/admingina ko'radi:
+    if is_admin_user:
+        buttons.append([InlineKeyboardButton(text="👑 Admin Panel", callback_data="admin_panel")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+# Admin Panel inline boshqaruv menyusi
 def get_admin_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Foydalanuvchilar statistikasi", callback_data="admin_stats")],
@@ -136,7 +155,7 @@ def get_admin_keyboard():
         [InlineKeyboardButton(text="👥 Oxirgi foydalanuvchilar", callback_data="admin_recent_users")],
         [InlineKeyboardButton(text="🎁 Oxirgi tabriknomalar", callback_data="admin_recent_wishes")],
         [InlineKeyboardButton(text="🌐 Web Admin havolasi", callback_data="admin_web_info")],
-        [InlineKeyboardButton(text="⬅️ Bosh menyuga qaytish", callback_data="back_to_menu")]
+        [InlineKeyboardButton(text="👤 Foydalanuvchi menyusiga o'tish", callback_data="switch_to_user_mode")]
     ])
 
 def get_admin_stats_keyboard():
@@ -146,7 +165,7 @@ def get_admin_stats_keyboard():
             InlineKeyboardButton(text="📢 Reklama yuborish", callback_data="admin_broadcast_start")
         ],
         [InlineKeyboardButton(text="👥 Foydalanuvchilar", callback_data="admin_recent_users")],
-        [InlineKeyboardButton(text="⬅️ Admin menyu", callback_data="admin_panel")]
+        [InlineKeyboardButton(text="👑 Admin panel", callback_data="admin_panel")]
     ])
 
 def get_broadcast_confirm_keyboard():
@@ -192,7 +211,7 @@ def register_bot_handlers(dp: Dispatcher):
     dp.message.outer_middleware(tracking_middleware)
     dp.callback_query.outer_middleware(tracking_middleware)
 
-    # ==================== ADMIN PANEL HANDLERS ====================
+    # ==================== ADMIN PANEL HANDLERS (FAQAT ADMIN UCHUN) ====================
 
     # /admin komandasi yoki "👑 Admin Panel" matni
     @dp.message(Command("admin"))
@@ -209,18 +228,8 @@ def register_bot_handlers(dp: Dispatcher):
 
         is_adm = await check_user_is_admin(user_id)
         if not is_adm:
-            text = (
-                "👑 <b>Admin Boshqaruv Paneliga kirish</b>\n\n"
-                f"Sizning Telegram ID: <code>{user_id}</code>\n\n"
-                "Agar siz bot egasi bo'lsangiz, admin parolini kiritib darhol admin bo'lishingiz mumkin:\n"
-                "👉 Buyruq: <code>/admin admin123</code>\n"
-                "Yoki pastdagi tugmani bosing 👇"
-            )
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔐 Parol orqali kirish", callback_data="admin_auth_start")],
-                [InlineKeyboardButton(text="⬅️ Bosh menyuga qaytish", callback_data="back_to_menu")]
-            ])
-            await message.answer(text, parse_mode="HTML", reply_markup=keyboard)
+            # Oddiy foydalanuvchiga ortiqcha admin ma'lumotlari ko'rsatilmaydi!
+            await message.answer("⛔️ Kechirasiz, bu buyruq faqat bot administratori uchun mo'ljallangan.")
             return
 
         first_name = message.from_user.first_name or "Admin"
@@ -228,40 +237,11 @@ def register_bot_handlers(dp: Dispatcher):
             f"👑 <b>Boshqaruv Paneli (Admin Panel)</b>\n\n"
             f"Assalomu alaykum, <b>{first_name}</b>!\n"
             "Bot boshqaruv markaziga xush kelibsiz.\n\n"
-            "Bu yerda bot statistikasi (foydalanuvchilar soni)ni ko'rishingiz va barcha a'zolarga xabarnoma/reklama yuborishingiz mumkin.\n\n"
+            "Bu ma'lumotlar faqat sizga ko'rinadi. Oddiy foydalanuvchilar bularni ko'ra olmaydi.\n\n"
             "Kerakli bo'limni tanlang 👇"
         )
         await message.answer(text, parse_mode="HTML", reply_markup=get_admin_keyboard())
-
-    # Parol orqali admin bo'lish
-    @dp.callback_query(F.data == "admin_auth_start")
-    async def cb_admin_auth_start(callback: types.CallbackQuery, state: FSMContext):
-        await state.set_state(AdminAuthForm.waiting_for_password)
-        text = (
-            "🔐 <b>Admin parolini kiriting:</b>\n\n"
-            "<i>(Standart parol: <code>admin123</code>)</i>"
-        )
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_fsm")]
-        ])
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
-        await callback.answer()
-
-    # Parolni tekshirish
-    @dp.message(AdminAuthForm.waiting_for_password, F.text)
-    async def process_admin_password(message: types.Message, state: FSMContext):
-        password = message.text.strip()
-        if password == ADMIN_PASSWORD:
-            await make_user_admin(message.from_user.id)
-            await state.clear()
-            await message.answer(
-                "✅ <b>Tabriklaymiz! Siz muvaffaqiyatli admin bo'ldingiz!</b>\n\n"
-                "Admin panelga xush kelibsiz 👇",
-                parse_mode="HTML",
-                reply_markup=get_admin_keyboard()
-            )
-        else:
-            await message.answer("❌ Noto'g'ri parol. Qayta urinib ko'ring yoki /cancel bosing:")
+        await message.answer("Admin tezkor tugmalari faollashtirildi:", reply_markup=get_admin_mode_reply_keyboard())
 
     # Admin bosh menyusi (Callback)
     @dp.callback_query(F.data == "admin_panel")
@@ -270,17 +250,7 @@ def register_bot_handlers(dp: Dispatcher):
         user_id = callback.from_user.id
         is_adm = await check_user_is_admin(user_id)
         if not is_adm:
-            text = (
-                "👑 <b>Admin Boshqaruv Paneliga kirish</b>\n\n"
-                f"Sizning Telegram ID: <code>{user_id}</code>\n\n"
-                "Admin bo'lish uchun parolni kiriting:"
-            )
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔐 Parol orqali kirish", callback_data="admin_auth_start")],
-                [InlineKeyboardButton(text="⬅️ Bosh menyuga qaytish", callback_data="back_to_menu")]
-            ])
-            await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
-            await callback.answer()
+            await callback.answer("⛔️ Kirish taqiqlangan!", show_alert=True)
             return
 
         text = (
@@ -290,10 +260,38 @@ def register_bot_handlers(dp: Dispatcher):
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_admin_keyboard())
         await callback.answer()
 
-    # 📊 Statistika tugmasi (Necha kishi foydalanayotgani) — Callback va Message
+    # 👤 Foydalanuvchi menyusiga o'tish (Admin o'zini oddiy foydalanuvchi paneliga o'tkazishi)
+    @dp.message(F.text == "👤 Foydalanuvchi rejimi")
+    @dp.callback_query(F.data == "switch_to_user_mode")
+    async def cb_switch_to_user(event: types.Message | types.CallbackQuery, state: FSMContext):
+        await state.clear()
+        user_id = event.from_user.id
+        is_adm = await check_user_is_admin(user_id)
+
+        text = (
+            "👤 <b>Foydalanuvchi rejimiga o'tdingiz.</b>\n\n"
+            "Bu yerda siz oddiy foydalanuvchi kabi yaqinlaringiz uchun tabriknomalar yaratishingiz va ularni ko'rishingiz mumkin.\n\n"
+            "Kerakli bo'limni tanlang 👇"
+        )
+        if isinstance(event, types.CallbackQuery):
+            await event.message.edit_text(text, parse_mode="HTML", reply_markup=get_main_keyboard(is_admin_user=is_adm))
+            await event.answer("Foydalanuvchi rejimiga o'tildi")
+        else:
+            await event.answer(text, parse_mode="HTML", reply_markup=get_admin_user_reply_keyboard() if is_adm else get_user_reply_keyboard())
+
+    # 📊 Statistika tugmasi (FAQAT ADMIN UCHUN KO'RINADI VA ISHLAYDI)
     @dp.message(F.text == "📊 Bot statistikasi")
     @dp.callback_query(F.data == "admin_stats")
     async def show_stats(event: types.Message | types.CallbackQuery):
+        user_id = event.from_user.id
+        is_adm = await check_user_is_admin(user_id)
+        if not is_adm:
+            if isinstance(event, types.CallbackQuery):
+                await event.answer("⛔️ Ushbu ma'lumot faqat bot ma'muri uchun!", show_alert=True)
+            else:
+                await event.answer("⛔️ Kechirasiz, ushbu ma'lumot faqat bot ma'muri uchun ochiq.", reply_markup=get_user_reply_keyboard())
+            return
+
         stats = await get_stats_summary()
 
         text = (
@@ -314,9 +312,18 @@ def register_bot_handlers(dp: Dispatcher):
         else:
             await event.answer(text, parse_mode="HTML", reply_markup=get_admin_stats_keyboard())
 
-    # 👥 Oxirgi foydalanuvchilar ro'yxati
+    # 👥 Oxirgi foydalanuvchilar ro'yxati (Faqat Admin)
+    @dp.message(F.text == "👥 Foydalanuvchilar")
     @dp.callback_query(F.data == "admin_recent_users")
-    async def cb_admin_recent_users(callback: types.CallbackQuery):
+    async def cb_admin_recent_users(event: types.Message | types.CallbackQuery):
+        user_id = event.from_user.id
+        if not await check_user_is_admin(user_id):
+            if isinstance(event, types.CallbackQuery):
+                await event.answer("⛔️ Ruxsat berilmagan!", show_alert=True)
+            else:
+                await event.answer("⛔️ Kirish taqiqlangan.")
+            return
+
         users = await get_recent_users(limit=15)
         if not users:
             text = "👥 Hozircha foydalanuvchilar ro'yxati bo'sh."
@@ -332,14 +339,21 @@ def register_bot_handlers(dp: Dispatcher):
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔄 Yangilash", callback_data="admin_recent_users")],
-            [InlineKeyboardButton(text="⬅️ Admin panelga qaytish", callback_data="admin_panel")]
+            [InlineKeyboardButton(text="👑 Admin panelga qaytish", callback_data="admin_panel")]
         ])
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
-        await callback.answer()
+        if isinstance(event, types.CallbackQuery):
+            await event.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
+            await event.answer()
+        else:
+            await event.answer(text, parse_mode="HTML", reply_markup=keyboard)
 
-    # 🎁 Oxirgi tabriknomalar ro'yxati
+    # 🎁 Oxirgi tabriknomalar ro'yxati (Faqat Admin)
     @dp.callback_query(F.data == "admin_recent_wishes")
     async def cb_admin_recent_wishes(callback: types.CallbackQuery):
+        if not await check_user_is_admin(callback.from_user.id):
+            await callback.answer("⛔️ Ruxsat berilmagan!", show_alert=True)
+            return
+
         wishes = await get_recent_wishes(limit=10)
         if not wishes:
             text = "🎁 Hozircha yaratilgan tabriknomalar mavjud emas."
@@ -355,14 +369,18 @@ def register_bot_handlers(dp: Dispatcher):
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔄 Yangilash", callback_data="admin_recent_wishes")],
-            [InlineKeyboardButton(text="⬅️ Admin panelga qaytish", callback_data="admin_panel")]
+            [InlineKeyboardButton(text="👑 Admin panelga qaytish", callback_data="admin_panel")]
         ])
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard, disable_web_page_preview=True)
         await callback.answer()
 
-    # 🌐 Web Admin Dashboard havolasi
+    # 🌐 Web Admin Dashboard havolasi (Faqat Admin)
     @dp.callback_query(F.data == "admin_web_info")
     async def cb_admin_web_info(callback: types.CallbackQuery):
+        if not await check_user_is_admin(callback.from_user.id):
+            await callback.answer("⛔️ Ruxsat berilmagan!", show_alert=True)
+            return
+
         admin_web_url = f"{BASE_URL}/admin"
         text = (
             "🌐 <b>Veb Boshqaruv Paneli (Web Admin Dashboard)</b>\n\n"
@@ -374,17 +392,21 @@ def register_bot_handlers(dp: Dispatcher):
         buttons = []
         if is_valid_telegram_button_url(admin_web_url):
             buttons.append([InlineKeyboardButton(text="🌐 Saytda ochish", url=admin_web_url)])
-        buttons.append([InlineKeyboardButton(text="⬅️ Admin panelga qaytish", callback_data="admin_panel")])
+        buttons.append([InlineKeyboardButton(text="👑 Admin panelga qaytish", callback_data="admin_panel")])
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard, disable_web_page_preview=True)
         await callback.answer()
 
-    # 📢 Xabarnoma / Reklama yuborishni boshlash
+    # 📢 Xabarnoma / Reklama yuborishni boshlash (Faqat Admin)
+    @dp.message(F.text == "📢 Reklama yuborish")
     @dp.callback_query(F.data == "admin_broadcast_start")
-    async def cb_broadcast_start(callback: types.CallbackQuery, state: FSMContext):
-        is_adm = await check_user_is_admin(callback.from_user.id)
-        if not is_adm:
-            await callback.answer("⛔️ Siz admin emassiz!", show_alert=True)
+    async def cb_broadcast_start(event: types.Message | types.CallbackQuery, state: FSMContext):
+        user_id = event.from_user.id
+        if not await check_user_is_admin(user_id):
+            if isinstance(event, types.CallbackQuery):
+                await event.answer("⛔️ Siz admin emassiz!", show_alert=True)
+            else:
+                await event.answer("⛔️ Kirish taqiqlangan.")
             return
 
         stats = await get_stats_summary()
@@ -405,14 +427,16 @@ def register_bot_handlers(dp: Dispatcher):
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_broadcast")]
         ])
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
-        await callback.answer()
+        if isinstance(event, types.CallbackQuery):
+            await event.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
+            await event.answer()
+        else:
+            await event.answer(text, parse_mode="HTML", reply_markup=keyboard)
 
     # Reklama xabari qabul qilinganda (Preview tayyorlash)
     @dp.message(BroadcastForm.waiting_for_message)
     async def process_broadcast_message(message: types.Message, state: FSMContext, bot: Bot):
-        is_adm = await check_user_is_admin(message.from_user.id)
-        if not is_adm:
+        if not await check_user_is_admin(message.from_user.id):
             return
 
         await state.update_data(
@@ -440,8 +464,7 @@ def register_bot_handlers(dp: Dispatcher):
     # Reklamani tasdiqlab barchaga yuborish
     @dp.callback_query(BroadcastForm.waiting_for_confirm, F.data == "confirm_broadcast_send")
     async def cb_broadcast_confirm_send(callback: types.CallbackQuery, state: FSMContext, bot: Bot):
-        is_adm = await check_user_is_admin(callback.from_user.id)
-        if not is_adm:
+        if not await check_user_is_admin(callback.from_user.id):
             await callback.answer("⛔️ Siz admin emassiz!", show_alert=True)
             return
 
@@ -548,26 +571,25 @@ def register_bot_handlers(dp: Dispatcher):
             "4. Telefon kamerasi bilan ochganda — musiqa, konfetti va tort shamini puflash animatsiyasi ochiladi! ✨\n\n"
             "Boshlash uchun pastdagi tugmani bosing 👇"
         )
-        # Ham reply keyboard, ham inline keyboard chiqariladi!
-        await message.answer(
-            "Boshqaruv menyusi faollashtirildi 👇",
-            reply_markup=get_main_reply_keyboard()
-        )
-        await message.answer(
-            text,
-            parse_mode="HTML",
-            reply_markup=get_main_keyboard(is_admin_user=is_adm)
-        )
+
+        # Admin uchun alohida, oddiy foydalanuvchilar uchun faqat o'zlarining tugmalari:
+        if is_adm:
+            await message.answer("Boshqaruv menyusi 👇", reply_markup=get_admin_user_reply_keyboard())
+            await message.answer(text, parse_mode="HTML", reply_markup=get_main_keyboard(is_admin_user=True))
+        else:
+            await message.answer("Menyu 👇", reply_markup=get_user_reply_keyboard())
+            await message.answer(text, parse_mode="HTML", reply_markup=get_main_keyboard(is_admin_user=False))
 
     # /help komandasi
     @dp.message(Command("help"))
     async def cmd_help(message: types.Message):
+        is_adm = await check_user_is_admin(message.from_user.id)
+        admin_hint = "\n4️⃣ <b>/admin</b> — 👑 Admin Panel (Statistika & Reklama)" if is_adm else ""
         help_text = (
             "📖 <b>Botdan foydalanish qo'llanmasi:</b>\n\n"
             "1️⃣ <b>/start</b> — Bosh menyuni ochish\n"
             "2️⃣ <b>/new</b> — Yangi tabriknoma yaratish\n"
-            "3️⃣ <b>/mywishes</b> — Siz yaratgan barcha tabriklar va statistika\n"
-            "4️⃣ <b>/admin</b> — 👑 Admin Panel (Statistika & Reklama)\n"
+            f"3️⃣ <b>/mywishes</b> — Siz yaratgan barcha tabriklar va statistika{admin_hint}\n"
             "5️⃣ <b>/cancel</b> — Jarayonni bekor qilish\n\n"
             "💡 <i>QR kodni qayerga qo'yish mumkin?</i>\n"
             "• Sovg'a qutisiga yopishtirish\n"
@@ -581,17 +603,20 @@ def register_bot_handlers(dp: Dispatcher):
     @dp.message(Command("cancel"))
     async def cmd_cancel(message: types.Message, state: FSMContext):
         current_state = await state.get_state()
+        is_adm = await check_user_is_admin(message.from_user.id)
+        reply_kb = get_admin_user_reply_keyboard() if is_adm else get_user_reply_keyboard()
         if current_state is None:
-            await message.answer("Hech qanday faol jarayon yo'q.", reply_markup=get_main_reply_keyboard())
+            await message.answer("Hech qanday faol jarayon yo'q.", reply_markup=reply_kb)
             return
         await state.clear()
-        await message.answer("❌ Jarayon bekor qilindi.", reply_markup=get_main_reply_keyboard())
+        await message.answer("❌ Jarayon bekor qilindi.", reply_markup=reply_kb)
 
     # Callback: Bekor qilish
     @dp.callback_query(F.data == "cancel_fsm")
     async def cb_cancel(callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
-        await callback.message.edit_text("❌ Jarayon bekor qilindi.", reply_markup=get_main_keyboard())
+        is_adm = await check_user_is_admin(callback.from_user.id)
+        await callback.message.edit_text("❌ Jarayon bekor qilindi.", reply_markup=get_main_keyboard(is_admin_user=is_adm))
         await callback.answer()
 
     # Callback: Qanday ishlaydi?
@@ -780,6 +805,7 @@ def register_bot_handlers(dp: Dispatcher):
         photo_filename = data.get("photo_filename")
         sender_name = data.get("sender_name", "Yaqiningiz")
         user_id = callback.from_user.id
+        is_adm = await check_user_is_admin(user_id)
 
         await callback.message.edit_text("⏳ <i>Sehrli tabriknoma va QR kod yaratilmoqda...</i>", parse_mode="HTML")
 
@@ -841,7 +867,6 @@ def register_bot_handlers(dp: Dispatcher):
 
         except Exception as e:
             logger.error(f"Tabriknoma yaratishda xatolik: {e}", exc_info=True)
-            is_adm = await check_user_is_admin(user_id)
             await callback.message.edit_text(
                 f"⚠️ Kechirasiz, tabriknomani tayyorlashda xatolik yuz berdi:\n<code>{e}</code>\n\nIltimos, qayta urinib ko'ring.",
                 reply_markup=get_main_keyboard(is_admin_user=is_adm),
